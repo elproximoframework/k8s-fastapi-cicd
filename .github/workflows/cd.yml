@@ -1,4 +1,4 @@
-name: CD - Build y Deploy a AWS
+name: CD - Build y Deploy a EKS
 
 on:
   push:
@@ -51,10 +51,10 @@ jobs:
           echo "image=$ECR_REGISTRY/${{ vars.ECR_REPOSITORY }}:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
   # -------------------------------------------------------
-  # JOB 2: Desplegar en ECS Fargate (requiere aprobación manual)
+  # JOB 2: Desplegar en EKS (requiere aprobación manual)
   # -------------------------------------------------------
   deploy-to-production:
-    name: Deploy a Producción
+    name: Deploy a EKS (Producción)
     runs-on: ubuntu-latest
     needs: build-and-push
     environment: production  # <-- Requiere aprobación manual del reviewer
@@ -70,20 +70,23 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: ${{ vars.AWS_REGION }}
 
-      # Actualizar el task definition con la nueva URI de la imagen
-      - name: Actualizar imagen en el Task Definition de ECS
-        id: task-def
-        uses: aws-actions/amazon-ecs-render-task-definition@v1
-        with:
-          task-definition: ${{ vars.ECS_TASK_DEFINITION }}
-          container-name: ${{ vars.CONTAINER_NAME }}
-          image: ${{ needs.build-and-push.outputs.image }}
+      # Configurar la conexión al clúster de EKS
+      - name: Configurar Kubeconfig de EKS
+        run: |
+          aws eks update-kubeconfig --name ${{ vars.EKS_CLUSTER_NAME }} --region ${{ vars.AWS_REGION }}
 
-      # Desplegar la nueva revisión del task definition en ECS
-      - name: Desplegar en Amazon ECS con Rolling Update
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
-        with:
-          task-definition: ${{ steps.task-def.outputs.task-definition }}
-          service: ${{ vars.ECS_SERVICE }}
-          cluster: ${{ vars.ECS_CLUSTER }}
-          wait-for-service-stability: true  # Espera hasta Zero Downtime completado
+      # Desplegar los manifiestos (Deployment, Service, Ingress)
+      # Nota: Se omitió secret.yaml ya que External Secrets Operator los inyecta dinámicamente
+      - name: Desplegar manifiestos en EKS
+        run: |
+          kubectl apply -f k8s/
+
+      # Actualizar el deployment de Kubernetes con la nueva versión de la imagen
+      - name: Actualizar imagen en el Deployment de EKS
+        run: |
+          kubectl set image deployment/fastapi-api fastapi-api=${{ needs.build-and-push.outputs.image }}
+
+      # Verificar que los pods arranquen correctamente (Zero Downtime Rollout Check)
+      - name: Verificar estabilidad del despliegue
+        run: |
+          kubectl rollout status deployment/fastapi-api --timeout=300s
