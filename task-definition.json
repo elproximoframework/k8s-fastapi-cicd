@@ -52,7 +52,8 @@
     }
   ],
   "family": "k8s-fastapi-task",
-  "executionRoleArn": "arn:aws:iam::147885329467:role/EcsExecutionRole",
+  "executionRoleArn": "arn:aws:iam::147885329467:role/K8sFastapiStack-K8sFastapiTaskDefExecutionRoleC911B-Mz7Dvqp9TpkQ",
+  "taskRoleArn": "arn:aws:iam::147885329467:role/K8sFastapiStack-K8sFastapiTaskDefTaskRoleBD68D44D-qrKml56MfH3o",
   "networkMode": "awsvpc",
   "volumes": [],
   "placementConstraints": [],
