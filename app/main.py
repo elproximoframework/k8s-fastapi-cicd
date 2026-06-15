@@ -10,6 +10,10 @@ app = FastAPI(
 # Incluir los routers de negocio
 app.include_router(items.router, prefix="/api/v1", tags=["items"])
 
+@app.get("/", tags=["General"])
+def read_root():
+    return {"message": "Bienvenido a la API FastAPI desplegada con ECS Fargate y AWS CDK!"}
+
 # --- Health Checks (CRÍTICOS para ECS Fargate) ---
 
 @app.get("/health/live", tags=["Health"])
